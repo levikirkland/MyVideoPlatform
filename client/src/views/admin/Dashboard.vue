@@ -1,5 +1,6 @@
 <template>
   <v-container fluid class="py-8">
+    <v-breadcrumbs :items="[{ title: 'Admin', disabled: true }]" class="px-0 mb-4"></v-breadcrumbs>
     <h1 class="text-h3 font-weight-bold mb-8">Admin Dashboard</h1>
 
     <v-row>

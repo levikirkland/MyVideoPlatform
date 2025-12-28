@@ -12,6 +12,7 @@ import Compliance from './views/Compliance.vue'
 import History from './views/History.vue'
 import Profile from './views/Profile.vue'
 import PublicProfile from './views/PublicProfile.vue'
+import Membership from './views/Membership.vue'
 import AdminDashboard from './views/admin/Dashboard.vue'
 import AdminCategories from './views/admin/Categories.vue'
 import AdminTags from './views/admin/Tags.vue'
@@ -46,7 +47,7 @@ const routes = [
   {
     path: '/creator/dashboard',
     component: CreatorDashboard,
-    meta: { requiresAuth: true, requiresRole: ['creator', 'admin'] }
+    meta: { requiresAuth: true, requiresRole: ['creator'] }
   },
   { 
     path: '/moderation', 
@@ -66,6 +67,11 @@ const routes = [
   {
     path: '/history',
     component: History,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/membership',
+    component: Membership,
     meta: { requiresAuth: true }
   },
   {

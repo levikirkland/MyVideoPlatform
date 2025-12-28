@@ -5,7 +5,7 @@
       
       <router-link to="/" class="text-decoration-none text-white d-flex align-center gap-2 mr-8">
         <v-icon size="32" color="primary">mdi-play-circle</v-icon>
-        <span class="text-h6 font-weight-bold hidden-sm-and-down">VideoPlatform</span>
+        <span class="text-h6 font-weight-bold hidden-sm-and-down">MyVideoPlatform</span>
       </router-link>
 
       <v-text-field
@@ -45,6 +45,16 @@
 
         <template v-if="authStore.isAuthenticated">
           <v-btn to="/upload" icon="mdi-upload" variant="text" title="Upload"></v-btn>
+          <v-btn
+            class="mx-2 text-uppercase font-weight-bold"
+            :color="membershipStore.isActive ? 'success' : 'warning'"
+            variant="tonal"
+            size="small"
+            prepend-icon="mdi-badge-account"
+            to="/membership"
+          >
+            {{ membershipStore.isActive ? 'Member' : 'Membership' }}
+          </v-btn>
           
           <v-menu>
             <template v-slot:activator="{ props }">
@@ -65,8 +75,14 @@
               <v-list-item to="/favorites" prepend-icon="mdi-heart">
                 <v-list-item-title>Favorites</v-list-item-title>
               </v-list-item>
+              <v-list-item to="/membership" prepend-icon="mdi-badge-account">
+                <v-list-item-title>Membership</v-list-item-title>
+                <v-list-item-subtitle v-if="membershipStore.isActive" class="text-success">
+                  Active
+                </v-list-item-subtitle>
+              </v-list-item>
 
-              <template v-if="authStore.user?.role === 'creator' || (authStore.isAdmin && userVideos.length > 0)">
+              <template v-if="authStore.user?.role === 'creator'">
                 <v-divider class="my-2"></v-divider>
                 <v-list-subheader class="text-uppercase font-weight-bold text-caption">Creator</v-list-subheader>
                 <v-list-item to="/creator/dashboard" prepend-icon="mdi-video-account">
@@ -113,8 +129,9 @@
         <v-list-subheader class="text-uppercase font-weight-bold text-caption">Library</v-list-subheader>
         <v-list-item to="/favorites" prepend-icon="mdi-heart" title="Favorites"></v-list-item>
         <v-list-item to="/history" prepend-icon="mdi-history" title="History"></v-list-item>
+        <v-list-item to="/membership" prepend-icon="mdi-badge-account" title="Membership"></v-list-item>
         <v-list-item to="/upload" prepend-icon="mdi-upload" title="Upload Video"></v-list-item>
-        <v-list-item v-if="['creator', 'admin'].includes(authStore.user?.role)" to="/creator/dashboard" prepend-icon="mdi-video-account" title="Creator Dashboard" color="primary"></v-list-item>
+        <v-list-item v-if="authStore.user?.role === 'creator'" to="/creator/dashboard" prepend-icon="mdi-video-account" title="Creator Dashboard" color="primary"></v-list-item>
       </v-list>
 
       <v-divider class="my-2"></v-divider>
@@ -188,11 +205,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useAuthStore } from './store/auth';
 import { useUiStore } from './store/ui';
 import { useRouter } from 'vue-router';
 import axios from '@/plugins/axios';
+import { useMembershipStore } from './store/membership';
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
@@ -202,6 +220,7 @@ const currentLang = ref('EN');
 
 const categories = ref([]);
 const userVideos = ref([]);
+const membershipStore = useMembershipStore();
 
 const fetchCategories = async () => {
   try {
@@ -240,12 +259,23 @@ const fetchUserProfile = async () => {
 
 onMounted(() => {
   fetchCategories();
-  fetchUserProfile();
-  fetchUserVideos();
+  if (authStore.isAuthenticated) {
+    fetchUserProfile();
+    fetchUserVideos();
+  }
 });
+
+watch(() => authStore.isAuthenticated, (isAuthed) => {
+  if (isAuthed) {
+    membershipStore.fetchStatus();
+  } else {
+    membershipStore.reset();
+  }
+}, { immediate: true });
 
 const logout = () => {
   authStore.logout();
+  membershipStore.reset();
   router.push('/login');
 };
 </script>

@@ -3,6 +3,12 @@ const bcrypt = require('bcrypt');
 const { pool } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'devsecret';
+
+if (!process.env.JWT_SECRET) {
+    console.warn('Warning: JWT_SECRET not set. Using fallback devsecret. Do not use in production.');
+}
+
 exports.register = async (req, res, next) => {
     const { email, password, username } = req.body;
     try {
@@ -48,7 +54,7 @@ exports.login = async (req, res, next) => {
 
         const token = jwt.sign(
             { id: user.id, role: user.role, username: user.username },
-            process.env.JWT_SECRET || 'secret_key',
+            JWT_SECRET,
             { expiresIn: '24h' }
         );
 

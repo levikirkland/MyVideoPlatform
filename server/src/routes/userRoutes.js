@@ -8,6 +8,7 @@ router.put('/profile', authenticate, userController.updateProfile);
 router.post('/creator-request', authenticate, userController.requestCreatorStatus);
 router.post('/:id/follow', authenticate, userController.followUser);
 router.post('/:id/unfollow', authenticate, userController.unfollowUser);
+router.post('/:id/message', authenticate, userController.sendMessage);
 router.get('/:id', userController.getUserPublicProfile);
 
 module.exports = router;

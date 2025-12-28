@@ -23,6 +23,22 @@ CREATE TABLE users (
     last_login TIMESTAMP WITH TIME ZONE
 );
 
+-- MEMBERSHIPS
+CREATE TABLE memberships (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    start_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'active', 'expired', 'canceled')),
+    provider VARCHAR(50) NOT NULL,
+    provider_subscription_id VARCHAR(255) NOT NULL UNIQUE,
+    amount_cents INTEGER NOT NULL DEFAULT 500,
+    currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- CATEGORIES
 CREATE TABLE categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -55,6 +71,11 @@ CREATE TABLE videos (
     views_count BIGINT DEFAULT 0,
     likes_count INTEGER DEFAULT 0,
     dislikes_count INTEGER DEFAULT 0,
+    category_id UUID REFERENCES categories(id),
+    is_private BOOLEAN DEFAULT FALSE,
+    is_community BOOLEAN DEFAULT FALSE,
+    access_mode VARCHAR(20) DEFAULT 'public' CHECK (access_mode IN ('public', 'paidfans', 'username_only')),
+    single_username VARCHAR(255),
     is_age_restricted BOOLEAN DEFAULT TRUE,
     rejection_reason TEXT,
     processed_at TIMESTAMP WITH TIME ZONE,
@@ -75,6 +96,25 @@ CREATE TABLE video_tags (
     video_id UUID REFERENCES videos(id) ON DELETE CASCADE,
     tag_id UUID REFERENCES tags(id) ON DELETE CASCADE,
     PRIMARY KEY (video_id, tag_id)
+);
+
+CREATE TABLE video_access (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    video_id UUID REFERENCES videos(id) ON DELETE CASCADE,
+    username VARCHAR(100) NOT NULL,
+    granted_by_creator_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    granted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (video_id, username)
+);
+
+CREATE TABLE creator_payment_links (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    creator_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    provider VARCHAR(50) NOT NULL,
+    label VARCHAR(100) NOT NULL,
+    url VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- COMMENTS

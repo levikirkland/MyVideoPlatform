@@ -26,7 +26,7 @@
             <h3 class="text-h6 mb-2 line-clamp-2">{{ video.title }}</h3>
             <p class="text-caption text-grey mb-2">{{ video.uploader_name }}</p>
             <div class="d-flex justify-space-between align-center text-caption text-grey">
-              <span>{{ formatViews(video.views) }} views</span>
+              <span>{{ formatViews(video.views_count) }} views</span>
               <v-btn icon="mdi-heart" size="small" color="error" @click.stop="removeFavorite(video.id)"></v-btn>
             </div>
           </v-card-text>
@@ -67,6 +67,7 @@ const goToVideo = (videoId) => {
 };
 
 const formatViews = (views) => {
+  if (views === undefined || views === null) return '0';
   if (views >= 1000000) return (views / 1000000).toFixed(1) + 'M';
   if (views >= 1000) return (views / 1000).toFixed(1) + 'K';
   return views.toString();

@@ -1,5 +1,9 @@
 <template>
   <v-container fluid class="py-8">
+    <v-breadcrumbs :items="[
+      { title: 'Admin', disabled: false, to: '/admin/dashboard' },
+      { title: 'Moderation Queue', disabled: true }
+    ]" class="px-0 mb-4"></v-breadcrumbs>
     <h1 class="text-h3 font-weight-bold mb-8">Moderation Queue</h1>
     
     <v-tabs v-model="tab">

@@ -3,7 +3,7 @@ const { pool } = require('../config/db');
 exports.getProfile = async (req, res, next) => {
     try {
         const result = await pool.query(
-            'SELECT id, email, username, role, avatar_url, bio, creator_status, has_community_access, created_at FROM users WHERE id = $1', 
+            'SELECT id, email, username, role, avatar_url, bio, creator_status, created_at FROM users WHERE id = $1', 
             [req.user.id]
         );
         if (result.rows.length === 0) {
@@ -75,11 +75,19 @@ exports.getUserPublicProfile = async (req, res, next) => {
 
         const videosResult = await pool.query(videoQuery, params);
 
+        // Get follower count
+        const followerCountResult = await pool.query(
+            "SELECT COUNT(*) FROM follows WHERE following_id = $1 AND status = 'approved'",
+            [id]
+        );
+        const followerCount = parseInt(followerCountResult.rows[0].count, 10);
+
         res.json({
             user,
             videos: videosResult.rows,
             isFollowing,
-            followStatus
+            followStatus,
+            followerCount
         });
     } catch (error) {
         next(error);
@@ -135,6 +143,58 @@ exports.requestCreatorStatus = async (req, res, next) => {
             [id_photo_url, req.user.id]
         );
         res.json({ message: 'Creator request submitted' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.sendMessage = async (req, res, next) => {
+    const { id } = req.params; // Recipient user ID
+    const senderId = req.user.id;
+    const { content } = req.body;
+
+    if (id === senderId) {
+        return res.status(400).json({ message: 'Cannot message yourself' });
+    }
+
+    if (!content || content.trim().length === 0) {
+        return res.status(400).json({ message: 'Message content is required' });
+    }
+
+    if (content.length > 500) {
+        return res.status(400).json({ message: 'Message too long (max 500 characters)' });
+    }
+
+    try {
+        // Check if recipient exists and is a creator
+        const recipientResult = await pool.query(
+            'SELECT id, username, role FROM users WHERE id = $1',
+            [id]
+        );
+
+        if (recipientResult.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const recipient = recipientResult.rows[0];
+
+        // Only allow messaging creators
+        if (recipient.role !== 'creator') {
+            return res.status(403).json({ message: 'Can only message creators' });
+        }
+
+        // Insert message into messages table
+        const result = await pool.query(
+            `INSERT INTO messages (sender_id, recipient_id, content, created_at)
+             VALUES ($1, $2, $3, NOW())
+             RETURNING id, sender_id, recipient_id, content, created_at, is_read`,
+            [senderId, id, content.trim()]
+        );
+
+        res.status(201).json({
+            message: 'Message sent successfully',
+            data: result.rows[0]
+        });
     } catch (error) {
         next(error);
     }

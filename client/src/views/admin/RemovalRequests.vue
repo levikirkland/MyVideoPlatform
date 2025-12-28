@@ -1,5 +1,9 @@
 <template>
   <v-container fluid class="py-8">
+    <v-breadcrumbs :items="[
+      { title: 'Admin', disabled: false, to: '/admin/dashboard' },
+      { title: 'Removal Requests', disabled: true }
+    ]" class="px-0 mb-4"></v-breadcrumbs>
     <div class="mb-6">
       <h1 class="text-h3 font-weight-bold">Removal Requests</h1>
       <p class="text-grey">Review and process video removal requests</p>

@@ -20,6 +20,10 @@ a {
   cursor: pointer;
 }
 
+.hover-underline:hover {
+  text-decoration: underline !important;
+}
+
 .position-relative {
   position: relative;
 }
