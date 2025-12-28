@@ -22,15 +22,19 @@
     </div>
     
     <div class="d-flex gap-3 mt-3 px-1">
-      <v-avatar size="36" color="grey-darken-3" class="flex-shrink-0">
-        <span class="text-subtitle-2">{{ video.uploader_name?.charAt(0).toUpperCase() }}</span>
-      </v-avatar>
+      <router-link :to="`/user/${video.uploader_id}`" @click.stop>
+        <v-avatar size="36" color="grey-darken-3" class="flex-shrink-0 cursor-pointer">
+          <span class="text-subtitle-2">{{ video.uploader_name?.charAt(0).toUpperCase() }}</span>
+        </v-avatar>
+      </router-link>
       <div class="flex-grow-1 overflow-hidden">
         <h3 class="text-subtitle-2 font-weight-bold mb-1 line-clamp-2" :title="video.title">
           {{ video.title }}
         </h3>
         <div class="text-caption text-grey-lighten-1">
-          <div class="mb-1">{{ video.uploader_name }}</div>
+          <router-link :to="`/user/${video.uploader_id}`" class="text-grey-lighten-1 text-decoration-none hover-underline" @click.stop>
+            {{ video.uploader_name }}
+          </router-link>
           <div class="d-flex align-center">
             <span>{{ formatViews(video.views_count) }} views</span>
             <span class="mx-1">•</span>
@@ -90,3 +94,12 @@ const timeAgo = (date) => {
   return `${Math.floor(diffMonths / 12)} years ago`;
 };
 </script>
+
+<style scoped>
+.hover-underline:hover {
+  text-decoration: underline !important;
+}
+.cursor-pointer {
+  cursor: pointer;
+}
+</style>

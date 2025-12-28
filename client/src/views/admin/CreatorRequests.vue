@@ -1,5 +1,9 @@
 <template>
   <v-container>
+    <v-breadcrumbs :items="[
+      { title: 'Admin', disabled: false, to: '/admin/dashboard' },
+      { title: 'Creator Requests', disabled: true }
+    ]" class="px-0 mb-4"></v-breadcrumbs>
     <h1 class="text-h4 mb-6">Creator Requests</h1>
 
     <v-card>

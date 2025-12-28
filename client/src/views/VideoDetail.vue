@@ -50,11 +50,15 @@
         </div>
 
         <div class="d-flex align-center mt-2 flex-wrap gap-2">
-          <v-avatar size="40" color="grey-darken-3" class="mr-2">
-            <span class="text-h6">{{ video.uploader_name?.charAt(0).toUpperCase() }}</span>
-          </v-avatar>
+          <router-link :to="`/user/${video.uploader_id}`">
+            <v-avatar size="40" color="grey-darken-3" class="mr-2 cursor-pointer">
+              <span class="text-h6">{{ video.uploader_name?.charAt(0).toUpperCase() }}</span>
+            </v-avatar>
+          </router-link>
           <div>
-            <div class="text-subtitle-2">{{ video.uploader_name }}</div>
+            <router-link :to="`/user/${video.uploader_id}`" class="text-subtitle-2 text-decoration-none text-white hover-underline">
+              {{ video.uploader_name }}
+            </router-link>
             <div class="text-caption text-grey">{{ new Date(video.created_at).toLocaleDateString() }}</div>
           </div>
           
@@ -343,13 +347,11 @@ const fetchVideo = async () => {
       // Record history
       await axios.post(`/videos/${route.params.id}/history`);
       
-      // Check favorite status
-      try {
-        const favRes = await axios.get('/videos/favorites');
-        isFavorite.value = favRes.data.some(v => v.id === video.value.id);
-      } catch (e) {
-        console.error('Error checking favorites', e);
-      }
+      // Set favorite and rating status from response
+      isFavorite.value = video.value.is_favorited;
+      // user_rating is true (like), false (dislike), or null
+      if (video.value.user_rating === true) video.value.user_rating = 1;
+      else if (video.value.user_rating === false) video.value.user_rating = -1;
     }
   } catch (error) {
     console.error('Error fetching video:', error);
@@ -373,6 +375,13 @@ const rate = async (isLike) => {
     const res = await axios.post(`/videos/${route.params.id}/rate`, { rating });
     video.value.likes_count = res.data.likes;
     video.value.dislikes_count = res.data.dislikes;
+    
+    // Update local rating status
+    if (video.value.user_rating === rating) {
+      video.value.user_rating = null; // Toggled off
+    } else {
+      video.value.user_rating = rating;
+    }
   } catch (error) {
     uiStore.showError(error.response?.data?.message || 'Error rating video');
   }

@@ -40,6 +40,18 @@
 
             <v-divider class="my-6"></v-divider>
 
+            <div class="mb-6">
+              <h3 class="text-h6 mb-4">Membership</h3>
+              <v-alert :type="membershipStore.isActive ? 'success' : 'warning'" variant="tonal" class="mb-3">
+                {{ membershipStatusCopy }}
+              </v-alert>
+              <v-btn to="/membership" variant="outlined" color="primary" prepend-icon="mdi-badge-account">
+                Manage Membership
+              </v-btn>
+            </div>
+
+            <v-divider class="my-6"></v-divider>
+
             <div v-if="authStore.user?.role === 'user'">
               <h3 class="text-h6 mb-4">Become a Creator</h3>
               <p class="text-body-2 mb-4">
@@ -80,13 +92,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useAuthStore } from '@/store/auth';
 import { useUiStore } from '@/store/ui';
 import axios from '@/plugins/axios';
+import { useMembershipStore } from '@/store/membership';
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
+const membershipStore = useMembershipStore();
 const loading = ref(false);
 const requesting = ref(false);
 const idPhoto = ref(null);
@@ -103,7 +117,25 @@ onMounted(() => {
     form.value.email = authStore.user.email;
     form.value.bio = authStore.user.bio || '';
   }
+  if (authStore.isAuthenticated) {
+    membershipStore.fetchStatus();
+  }
 });
+
+const formatDate = (value) => {
+  if (!value) return '—';
+  return new Date(value).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
+const membershipStatusCopy = computed(() =>
+  membershipStore.isActive
+    ? `Active through ${formatDate(membershipStore.membership?.end_date)}`
+    : 'No active membership on file.'
+);
 
 const updateProfile = async () => {
   loading.value = true;

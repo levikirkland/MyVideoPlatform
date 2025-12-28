@@ -23,9 +23,12 @@ export function setupAxiosInterceptors(authStore) {
     (response) => response,
     (error) => {
       if (error.response?.status === 401) {
-        // Token expired or invalid, logout
-        authStore.logout()
-        window.location.href = '/login'
+        // Token expired or invalid, logout - but don't redirect if already on login/register
+        const currentPath = window.location.pathname
+        if (currentPath !== '/login' && currentPath !== '/register') {
+          authStore.logout()
+          window.location.href = '/login'
+        }
       }
       return Promise.reject(error)
     }

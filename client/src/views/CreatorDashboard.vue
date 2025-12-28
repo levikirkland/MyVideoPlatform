@@ -21,18 +21,18 @@
                 <v-img
                   :src="item.thumbnail_url || '/placeholder-video.png'"
                   width="80"
-                  aspect-ratio="16/9"
+                  height="45"
                   cover
-                  class="rounded mr-3 bg-grey-darken-3"
+                  class="rounded mr-3 bg-grey-darken-3 flex-shrink-0"
                 >
                   <template v-slot:placeholder>
                     <div class="d-flex align-center justify-center h-100">
-                      <v-icon color="grey-darken-1">mdi-video</v-icon>
+                      <v-icon color="grey-darken-1" size="16">mdi-video</v-icon>
                     </div>
                   </template>
                 </v-img>
-                <div class="text-truncate" style="max-width: 300px;">
-                  <div class="text-subtitle-2 font-weight-bold text-truncate">{{ item.title }}</div>
+                <div class="text-truncate" style="max-width: 250px;">
+                  <div class="text-body-2 font-weight-medium text-truncate">{{ item.title }}</div>
                   <div class="text-caption text-grey text-truncate">{{ item.description }}</div>
                 </div>
               </div>
@@ -51,6 +51,21 @@
               <v-chip :color="getStatusColor(item.status)" size="x-small">
                 {{ item.status }}
               </v-chip>
+            </template>
+            <template v-slot:item.access_mode="{ item }">
+              <div class="d-flex flex-column">
+                <v-chip :color="getAccessColor(item.access_mode)" size="x-small" class="mb-1 text-uppercase">
+                  {{ formatAccessLabel(item.access_mode) }}
+                </v-chip>
+                <v-btn
+                  size="x-small"
+                  variant="text"
+                  class="px-0 text-caption"
+                  @click="openAccessManager(item)"
+                >
+                  Manage
+                </v-btn>
+              </div>
             </template>
             <template v-slot:item.created_at="{ item }">
               <div class="text-caption">{{ formatDate(item.created_at) }}</div>
@@ -142,11 +157,101 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Access Controls Dialog -->
+    <v-dialog v-model="accessDialog" max-width="640px">
+      <v-card>
+        <v-card-title>Access Controls</v-card-title>
+        <v-card-subtitle class="text-caption">{{ accessVideo?.title }}</v-card-subtitle>
+        <v-card-text>
+          <v-select
+            v-if="accessVideo"
+            v-model="accessVideo.access_mode"
+            :items="accessModeOptions"
+            item-title="label"
+            item-value="value"
+            label="Access Mode"
+            variant="outlined"
+            class="mb-2"
+          ></v-select>
+          <p class="text-caption text-grey-lighten-1 mb-4">{{ currentAccessDescription }}</p>
+
+          <v-text-field
+            v-if="accessVideo?.access_mode === 'username_only'"
+            v-model="accessVideo.single_username"
+            label="Primary username"
+            variant="outlined"
+            hint="Optional shortcut for a single VIP without editing the full list."
+            persistent-hint
+            class="mb-4"
+          ></v-text-field>
+
+          <v-btn
+            color="primary"
+            class="mb-6"
+            :loading="savingAccessMode"
+            :disabled="!accessVideo"
+            @click="saveAccessMode"
+          >
+            Save Access Settings
+          </v-btn>
+
+          <v-divider class="my-4"></v-divider>
+
+          <div class="d-flex align-center mb-3">
+            <h3 class="text-subtitle-1 mb-0">Manual Username Grants</h3>
+            <v-spacer></v-spacer>
+            <v-btn
+              icon="mdi-refresh"
+              variant="text"
+              :loading="accessLoading"
+              @click="refreshAccessEntries"
+            ></v-btn>
+          </div>
+
+          <div class="d-flex flex-wrap align-center" style="gap: 12px;">
+            <v-text-field
+              v-model="newAccessUsername"
+              label="Username"
+              variant="outlined"
+              hide-details
+              density="comfortable"
+              class="flex-grow-1"
+            ></v-text-field>
+            <v-btn color="secondary" :loading="grantingAccess" @click="grantManualAccess">
+              Grant
+            </v-btn>
+          </div>
+
+          <div v-if="accessLoading" class="d-flex justify-center py-6">
+            <v-progress-circular indeterminate color="primary"></v-progress-circular>
+          </div>
+          <div v-else class="d-flex flex-wrap" style="gap: 8px;">
+            <v-chip
+              v-for="entry in accessEntries"
+              :key="entry.id"
+              closable
+              @click:close="revokeManualAccess(entry.username)"
+            >
+              {{ entry.username }}
+              <span class="text-caption text-grey-lighten-1 ml-2">{{ formatDate(entry.granted_at) }}</span>
+            </v-chip>
+            <p v-if="accessEntries.length === 0" class="text-caption text-grey-lighten-1">
+              No manual grants yet.
+            </p>
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn text @click="accessDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from '@/plugins/axios';
 import { useUiStore } from '@/store/ui';
 
@@ -158,6 +263,30 @@ const editDialog = ref(false);
 const thumbnailDialog = ref(false);
 const editedVideo = ref({});
 const uiStore = useUiStore();
+const accessDialog = ref(false);
+const accessVideo = ref(null);
+const accessEntries = ref([]);
+const accessLoading = ref(false);
+const savingAccessMode = ref(false);
+const grantingAccess = ref(false);
+const newAccessUsername = ref('');
+
+const accessModeOptions = [
+  { label: 'Public (default)', value: 'public' },
+  { label: 'Members Only', value: 'paidfans' },
+  { label: 'Username Gate', value: 'username_only' }
+];
+
+const accessDescriptions = {
+  public: 'Visible to every paying member once moderation approves it.',
+  paidfans: 'Only viewers with an active site membership can press play.',
+  username_only: 'Only usernames that you explicitly grant can stream this video.'
+};
+
+const currentAccessDescription = computed(() => {
+  if (!accessVideo.value) return '';
+  return accessDescriptions[accessVideo.value.access_mode] || '';
+});
 
 const getStatusColor = (status) => {
   switch (status) {
@@ -176,6 +305,28 @@ const formatDate = (dateString) => {
     month: 'short',
     day: 'numeric'
   });
+};
+
+const formatAccessLabel = (mode) => {
+  switch (mode) {
+    case 'paidfans':
+      return 'Members Only';
+    case 'username_only':
+      return 'Username Gate';
+    default:
+      return 'Public';
+  }
+};
+
+const getAccessColor = (mode) => {
+  switch (mode) {
+    case 'paidfans':
+      return 'warning';
+    case 'username_only':
+      return 'info';
+    default:
+      return 'success';
+  }
 };
 
 const openThumbnailTool = (video) => {
@@ -204,6 +355,7 @@ const videoHeaders = [
   { title: 'Video', key: 'video', width: '320px' },
   { title: 'Visibility', key: 'is_private' },
   { title: 'Status', key: 'status' },
+  { title: 'Access', key: 'access_mode', sortable: false },
   { title: 'Date', key: 'created_at' },
   { title: 'Stats', key: 'stats', sortable: false },
   { title: 'Actions', key: 'actions', sortable: false },
@@ -224,11 +376,97 @@ const fetchData = async () => {
       axios.get('/videos/creator/follow-requests')
     ]);
     videos.value = vRes.data;
+    if (accessVideo.value) {
+      const refreshed = vRes.data.find((video) => video.id === accessVideo.value.id);
+      if (refreshed) {
+        accessVideo.value = { ...accessVideo.value, ...refreshed };
+      }
+    }
     followRequests.value = fRes.data;
   } catch (error) {
     console.error('Error fetching creator data:', error);
   } finally {
     loading.value = false;
+  }
+};
+
+const openAccessManager = async (video) => {
+  accessVideo.value = { ...video };
+  accessDialog.value = true;
+  newAccessUsername.value = '';
+  await fetchAccessEntries(video.id);
+};
+
+const fetchAccessEntries = async (videoId) => {
+  accessLoading.value = true;
+  try {
+    const { data } = await axios.get(`/videos/${videoId}/access`);
+    accessEntries.value = data;
+  } catch (error) {
+    uiStore.showError('Unable to load access list');
+  } finally {
+    accessLoading.value = false;
+  }
+};
+
+const refreshAccessEntries = () => {
+  if (accessVideo.value) {
+    fetchAccessEntries(accessVideo.value.id);
+  }
+};
+
+const saveAccessMode = async () => {
+  if (!accessVideo.value) return;
+  savingAccessMode.value = true;
+  try {
+    const payload = {
+      access_mode: accessVideo.value.access_mode,
+      single_username: accessVideo.value.single_username || undefined
+    };
+    const { data } = await axios.put(`/videos/${accessVideo.value.id}/access-mode`, payload);
+    uiStore.showSuccess('Access mode updated');
+    const index = videos.value.findIndex((video) => video.id === accessVideo.value.id);
+    if (index !== -1) {
+      videos.value[index] = { ...videos.value[index], ...data.video };
+    }
+    accessVideo.value = { ...accessVideo.value, ...data.video };
+  } catch (error) {
+    const message = error.response?.data?.message || 'Unable to update access mode';
+    uiStore.showError(message);
+  } finally {
+    savingAccessMode.value = false;
+  }
+};
+
+const grantManualAccess = async () => {
+  if (!accessVideo.value) return;
+  const username = newAccessUsername.value.trim();
+  if (!username) {
+    uiStore.showWarning('Enter a username to grant access');
+    return;
+  }
+  grantingAccess.value = true;
+  try {
+    await axios.post(`/videos/${accessVideo.value.id}/access`, { username });
+    uiStore.showSuccess('Access granted');
+    newAccessUsername.value = '';
+    await fetchAccessEntries(accessVideo.value.id);
+  } catch (error) {
+    const message = error.response?.data?.message || 'Unable to grant access';
+    uiStore.showError(message);
+  } finally {
+    grantingAccess.value = false;
+  }
+};
+
+const revokeManualAccess = async (username) => {
+  if (!accessVideo.value) return;
+  try {
+    await axios.delete(`/videos/${accessVideo.value.id}/access/${encodeURIComponent(username)}`);
+    accessEntries.value = accessEntries.value.filter((entry) => entry.username !== username);
+    uiStore.showInfo('Access revoked');
+  } catch (error) {
+    uiStore.showError('Unable to revoke access');
   }
 };
 

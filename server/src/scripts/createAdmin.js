@@ -12,7 +12,7 @@ const pool = new Pool({
 });
 
 async function createAdmin() {
-    const email = 'admin@myadultlibrary.com';
+    const email = 'admin@myvideoplatform.com';
     const password = 'password123'; // Default password
     const username = 'AdminUser';
 

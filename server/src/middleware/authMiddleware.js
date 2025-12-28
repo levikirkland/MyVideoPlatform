@@ -1,4 +1,11 @@
 const jwt = require('jsonwebtoken');
+const membershipService = require('../services/membershipService');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'devsecret';
+
+if (!process.env.JWT_SECRET) {
+    console.warn('Warning: JWT_SECRET not set. Using fallback devsecret. Do not use in production.');
+}
 
 exports.authenticate = (req, res, next) => {
     const authHeader = req.headers.authorization;
@@ -8,7 +15,7 @@ exports.authenticate = (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret_key');
+        const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded;
         next();
     } catch (error) {
@@ -24,7 +31,7 @@ exports.optionalAuthenticate = (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret_key');
+        const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded;
         next();
     } catch (error) {
@@ -43,4 +50,24 @@ exports.requireRole = (roles) => {
         }
         next();
     };
+};
+
+exports.requireMembership = async (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    if (['admin', 'moderator', 'creator'].includes(req.user.role)) {
+        return next();
+    }
+
+    try {
+        const active = await membershipService.hasActiveMembership(req.user.id);
+        if (!active) {
+            return res.status(402).json({ message: 'Membership required' });
+        }
+        next();
+    } catch (error) {
+        next(error);
+    }
 };

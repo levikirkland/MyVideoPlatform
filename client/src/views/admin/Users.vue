@@ -1,5 +1,9 @@
 <template>
   <v-container fluid class="py-8">
+    <v-breadcrumbs :items="[
+      { title: 'Admin', disabled: false, to: '/admin/dashboard' },
+      { title: 'Users', disabled: true }
+    ]" class="px-0 mb-4"></v-breadcrumbs>
     <div class="mb-6">
       <h1 class="text-h3 font-weight-bold">Manage Users</h1>
       <p class="text-grey">Manage user accounts and permissions</p>
